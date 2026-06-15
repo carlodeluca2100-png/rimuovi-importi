@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Rimuovi Importi - Computo Metrico</title>
+<title>Strumenti PDF</title>
 <style>
   :root{
     --bg:#0f172a; --card:#1e293b; --accent:#38bdf8; --accent2:#0ea5e9;
@@ -13,180 +13,325 @@
   body{
     margin:0; min-height:100vh; font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
     background:linear-gradient(160deg,#0f172a,#1e293b); color:var(--text);
-    display:flex; align-items:center; justify-content:center; padding:24px;
+    display:flex; align-items:flex-start; justify-content:center; padding:32px 24px;
   }
+  .wrap{width:100%; max-width:580px}
+  .tabs{display:flex; gap:8px; margin-bottom:18px}
+  .tab{
+    flex:1; padding:12px 10px; text-align:center; border-radius:12px 12px 0 0; cursor:pointer;
+    background:#15212f; border:1px solid var(--border); border-bottom:none; color:var(--muted);
+    font-weight:600; font-size:14px; transition:.15s;
+  }
+  .tab.active{background:var(--card); color:var(--accent); box-shadow:0 -2px 0 var(--accent) inset}
   .card{
-    width:100%; max-width:560px; background:var(--card); border:1px solid var(--border);
-    border-radius:18px; padding:32px; box-shadow:0 20px 60px rgba(0,0,0,.4);
+    width:100%; background:var(--card); border:1px solid var(--border);
+    border-radius:0 0 18px 18px; padding:30px; box-shadow:0 20px 60px rgba(0,0,0,.4);
   }
-  h1{font-size:22px; margin:0 0 4px}
-  p.sub{color:var(--muted); margin:0 0 24px; font-size:14px; line-height:1.5}
-  #drop{
-    border:2px dashed var(--border); border-radius:14px; padding:46px 20px; text-align:center;
+  .panel{display:none}
+  .panel.active{display:block}
+  h1{font-size:21px; margin:0 0 4px}
+  p.sub{color:var(--muted); margin:0 0 22px; font-size:14px; line-height:1.5}
+  .drop{
+    border:2px dashed var(--border); border-radius:14px; padding:42px 20px; text-align:center;
     cursor:pointer; transition:.18s; background:rgba(56,189,248,.03);
   }
-  #drop.hover{border-color:var(--accent); background:rgba(56,189,248,.10); transform:scale(1.01)}
-  #drop .icon{font-size:44px; margin-bottom:10px}
-  #drop .big{font-size:16px; font-weight:600}
-  #drop .small{color:var(--muted); font-size:13px; margin-top:6px}
-  #file{display:none}
-  .status{margin-top:22px; font-size:14px; min-height:22px; text-align:center}
+  .drop.hover{border-color:var(--accent); background:rgba(56,189,248,.10); transform:scale(1.01)}
+  .drop .icon{font-size:42px; margin-bottom:10px}
+  .drop .big{font-size:16px; font-weight:600}
+  .drop .small{color:var(--muted); font-size:13px; margin-top:6px}
+  input[type=file]{display:none}
+  .row{display:flex; gap:10px; margin-top:12px}
+  .row a{flex:1; text-align:center; font-size:13px; color:var(--accent); cursor:pointer; text-decoration:underline}
+  .status{margin-top:20px; font-size:14px; min-height:22px; text-align:center}
   .bar{height:8px; background:#0b1220; border-radius:99px; overflow:hidden; margin-top:14px; display:none}
   .bar > div{height:100%; width:0; background:linear-gradient(90deg,var(--accent),var(--accent2)); transition:width .2s}
   button{
-    width:100%; margin-top:22px; padding:15px; border:0; border-radius:12px; font-size:16px;
+    width:100%; margin-top:20px; padding:15px; border:0; border-radius:12px; font-size:16px;
     font-weight:700; cursor:pointer; color:#04222e; background:linear-gradient(90deg,var(--accent),var(--accent2));
     transition:.15s; display:none;
   }
   button:hover{filter:brightness(1.07)}
   button:active{transform:translateY(1px)}
+  .filelist{margin-top:16px; max-height:180px; overflow:auto; font-size:13px; border:1px solid var(--border); border-radius:10px; display:none}
+  .filelist div{padding:7px 12px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; gap:10px}
+  .filelist div:last-child{border-bottom:none}
+  .filelist .ko{color:#f87171}
+  .filelist .okk{color:var(--ok)}
   .note{margin-top:18px; font-size:12px; color:var(--muted); line-height:1.5; text-align:center}
   .err{color:#f87171}
   .done{color:var(--ok)}
 </style>
 </head>
 <body>
-  <div class="card">
-    <h1>🧾 Rimuovi Importi</h1>
-    <p class="sub">Carica un Computo Metrico Estimativo in PDF (formato PriMus/ACCA).
-       Lo strumento cancella i valori della colonna <b>IMPORTI</b> (unitario e TOTALE)
-       e ti restituisce lo stesso PDF, senza prezzi.</p>
-
-    <div id="drop">
-      <div class="icon">📄</div>
-      <div class="big">Trascina qui il PDF</div>
-      <div class="small">oppure clicca per selezionarlo</div>
-    </div>
-    <input type="file" id="file" accept="application/pdf,.pdf">
-
-    <div class="bar"><div id="barfill"></div></div>
-    <div class="status" id="status"></div>
-    <button id="dl">⬇️ Scarica PDF senza importi</button>
-
-    <div class="note">Tutto avviene sul tuo computer: il file non viene caricato su nessun server.</div>
+<div class="wrap">
+  <div class="tabs">
+    <div class="tab active" data-tab="importi">🧾 Rimuovi Importi</div>
+    <div class="tab" data-tab="p7m">🔓 Converter p7m → PDF</div>
   </div>
+  <div class="card">
 
-<!-- Librerie: lette da CDN (serve connessione internet) -->
+    <!-- ========== PANNELLO 1: RIMUOVI IMPORTI ========== -->
+    <section class="panel active" id="panel-importi">
+      <h1>🧾 Rimuovi Importi</h1>
+      <p class="sub">Carica un Computo Metrico Estimativo in PDF (formato PriMus/ACCA).
+         Cancella i valori della colonna <b>IMPORTI</b> (unitario e TOTALE) e ti restituisce
+         lo stesso PDF, senza prezzi.</p>
+
+      <div class="drop" id="drop1">
+        <div class="icon">📄</div>
+        <div class="big">Trascina qui il PDF</div>
+        <div class="small">oppure clicca per selezionarlo</div>
+      </div>
+      <input type="file" id="file1" accept="application/pdf,.pdf">
+
+      <div class="bar"><div id="bar1"></div></div>
+      <div class="status" id="status1"></div>
+      <button id="dl1">⬇️ Scarica PDF senza importi</button>
+    </section>
+
+    <!-- ========== PANNELLO 2: CONVERTER P7M ========== -->
+    <section class="panel" id="panel-p7m">
+      <h1>🔓 Converter p7m → PDF</h1>
+      <p class="sub">Carica uno o più file <b>.p7m</b> (PDF firmati digitalmente, anche
+         doppia firma <code>.pdf.p7m.p7m</code>) oppure un'intera cartella.
+         Estrae i PDF e te li restituisce tutti in un unico file ZIP.</p>
+
+      <div class="drop" id="drop2">
+        <div class="icon">🗂️</div>
+        <div class="big">Trascina qui i file .p7m</div>
+        <div class="small">o una cartella intera</div>
+      </div>
+      <input type="file" id="file2" accept=".p7m" multiple>
+      <input type="file" id="folder2" webkitdirectory directory multiple>
+      <div class="row">
+        <a id="pickFiles">📑 Scegli file</a>
+        <a id="pickFolder">📁 Scegli cartella</a>
+      </div>
+
+      <div class="bar"><div id="bar2"></div></div>
+      <div class="status" id="status2"></div>
+      <div class="filelist" id="list2"></div>
+      <button id="dl2">⬇️ Scarica tutti i PDF (ZIP)</button>
+    </section>
+
+    <div class="note">Tutto avviene sul tuo computer: i file non vengono caricati su nessun server.</div>
+  </div>
+</div>
+
+<!-- Librerie da CDN (serve connessione internet) -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script>
-const COL_LEFT = 494;   // taglio: prezzi a destra di x=494
-const TOP_MARGIN = 40;  // ignora il numero di pagina in alto
-const hasDigit = /\d/;
+/* ---------- tab switching ---------- */
+document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => {
+  document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(x => x.classList.remove('active'));
+  t.classList.add('active');
+  document.getElementById('panel-' + t.dataset.tab).classList.add('active');
+}));
 
-const dropEl = document.getElementById('drop');
-const fileEl = document.getElementById('file');
-const statusEl = document.getElementById('status');
-const dlBtn = document.getElementById('dl');
-const bar = document.querySelector('.bar');
-const barfill = document.getElementById('barfill');
-
-let resultBytes = null, resultName = "computo_senza_importi.pdf";
-
-if (window.pdfjsLib) {
-  pdfjsLib.GlobalWorkerOptions.workerSrc =
-    "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+/* ---------- helper drag&drop ---------- */
+function wireDrop(dropEl, onFiles){
+  ['dragenter','dragover'].forEach(ev => dropEl.addEventListener(ev, e => {
+    e.preventDefault(); dropEl.classList.add('hover');
+  }));
+  ['dragleave','drop'].forEach(ev => dropEl.addEventListener(ev, e => {
+    e.preventDefault(); dropEl.classList.remove('hover');
+  }));
+  dropEl.addEventListener('drop', e => {
+    const files = [...e.dataTransfer.files];
+    if (files.length) onFiles(files);
+  });
 }
 
-// ---- UI eventi drag & drop ----
-dropEl.addEventListener('click', () => fileEl.click());
-fileEl.addEventListener('change', e => { if (e.target.files[0]) handle(e.target.files[0]); });
-['dragenter','dragover'].forEach(ev => dropEl.addEventListener(ev, e => {
-  e.preventDefault(); dropEl.classList.add('hover');
-}));
-['dragleave','drop'].forEach(ev => dropEl.addEventListener(ev, e => {
-  e.preventDefault(); dropEl.classList.remove('hover');
-}));
-dropEl.addEventListener('drop', e => {
-  const f = e.dataTransfer.files[0];
-  if (f) handle(f);
-});
+/* =====================================================================
+   PANNELLO 1 — RIMUOVI IMPORTI
+   ===================================================================== */
+const COL_LEFT = 494, TOP_MARGIN = 40, hasDigit = /\d/;
+if (window.pdfjsLib)
+  pdfjsLib.GlobalWorkerOptions.workerSrc =
+    "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
 
-function setStatus(msg, cls){ statusEl.className = 'status ' + (cls||''); statusEl.textContent = msg; }
-function setProgress(p){ bar.style.display='block'; barfill.style.width = Math.round(p*100)+'%'; }
+const drop1 = document.getElementById('drop1'), file1 = document.getElementById('file1');
+const status1 = document.getElementById('status1'), dl1 = document.getElementById('dl1');
+const bar1wrap = drop1.parentElement.querySelector('.bar'), bar1 = document.getElementById('bar1');
+let resultBytes = null, resultName = "computo_senza_importi.pdf";
 
-async function handle(file){
-  if (!file.name.toLowerCase().endsWith('.pdf')) { setStatus('Seleziona un file PDF.', 'err'); return; }
-  if (!window.pdfjsLib || !window.PDFLib) {
-    setStatus('Librerie non caricate: serve la connessione a internet.', 'err'); return;
-  }
-  dlBtn.style.display = 'none';
+drop1.addEventListener('click', () => file1.click());
+file1.addEventListener('change', e => { if (e.target.files[0]) handleImporti(e.target.files[0]); });
+wireDrop(drop1, files => handleImporti(files[0]));
+
+function set1(msg, cls){ status1.className = 'status ' + (cls||''); status1.textContent = msg; }
+function prog1(p){ bar1wrap.style.display='block'; bar1.style.width = Math.round(p*100)+'%'; }
+
+async function handleImporti(file){
+  if (!file.name.toLowerCase().endsWith('.pdf')) { set1('Seleziona un file PDF.', 'err'); return; }
+  if (!window.pdfjsLib || !window.PDFLib){ set1('Librerie non caricate: serve internet.', 'err'); return; }
+  dl1.style.display = 'none';
   resultName = file.name.replace(/\.pdf$/i, '') + ' - senza importi.pdf';
   try {
     const buf = await file.arrayBuffer();
-    setStatus('Analisi del PDF in corso…');
-    setProgress(0.02);
-
-    // 1) pdf.js per leggere le posizioni del testo
+    set1('Analisi del PDF…'); prog1(0.02);
     const pdfjsDoc = await pdfjsLib.getDocument({ data: buf.slice(0) }).promise;
-    // 2) pdf-lib per modificare il PDF
     const outDoc = await PDFLib.PDFDocument.load(buf.slice(0));
-    const pages = outDoc.getPages();
-    const white = PDFLib.rgb(1, 1, 1);
-
-    let totRimossi = 0;
-    const n = pdfjsDoc.numPages;
-
-    for (let i = 1; i <= n; i++) {
+    const pages = outDoc.getPages(), white = PDFLib.rgb(1,1,1);
+    let tot = 0, n = pdfjsDoc.numPages;
+    for (let i=1;i<=n;i++){
       const page = await pdfjsDoc.getPage(i);
-      const vp = page.getViewport({ scale: 1 });
-      const H = vp.height;
-      const content = await page.getTextContent();
-      const items = content.items;
-
-      // pagina del computo solo se contiene l'intestazione di colonna
-      const isTable = items.some(it => {
-        const t = (it.str || '').trim();
-        return t === 'TOTALE' || t === 'unitario';
-      });
-
-      if (isTable) {
-        const outPage = pages[i - 1];
-        for (const it of items) {
-          const t = (it.str || '');
-          if (!hasDigit.test(t)) continue;
-          const x = it.transform[4];                 // sinistra (origine in basso-sx)
-          const yBase = it.transform[5];             // linea di base
-          const w = it.width;
-          const h = it.height || 9;
-          const distTop = H - (yBase + h);           // distanza dal bordo superiore
-          if (x >= COL_LEFT && distTop >= TOP_MARGIN) {
-            // rettangolo bianco sopra il valore
-            outPage.drawRectangle({
-              x: x - 1.5,
-              y: yBase - 2.5,
-              width: w + 3,
-              height: h + 5,
-              color: white,
-            });
-            totRimossi++;
+      const H = page.getViewport({scale:1}).height;
+      const items = (await page.getTextContent()).items;
+      const isTable = items.some(it => { const t=(it.str||'').trim(); return t==='TOTALE'||t==='unitario'; });
+      if (isTable){
+        const out = pages[i-1];
+        for (const it of items){
+          const t = it.str||''; if (!hasDigit.test(t)) continue;
+          const x = it.transform[4], yBase = it.transform[5], w = it.width, h = it.height||9;
+          if (x>=COL_LEFT && (H-(yBase+h))>=TOP_MARGIN){
+            out.drawRectangle({x:x-1.5, y:yBase-2.5, width:w+3, height:h+5, color:white});
+            tot++;
           }
         }
       }
-      setProgress(0.02 + 0.9 * (i / n));
-      setStatus(`Elaborazione pagina ${i} di ${n}…`);
+      prog1(0.02 + 0.9*(i/n)); set1(`Elaborazione pagina ${i} di ${n}…`);
     }
+    set1('Salvataggio…'); resultBytes = await outDoc.save(); prog1(1);
+    set1(`✓ Fatto! Rimossi ${tot} valori dalla colonna Importi.`, 'done');
+    dl1.style.display = 'block';
+  } catch(err){ console.error(err); set1('Errore: ' + err.message, 'err'); }
+}
+dl1.addEventListener('click', () => download(resultBytes, resultName, 'application/pdf'));
 
-    setStatus('Salvataggio del file…');
-    resultBytes = await outDoc.save();
-    setProgress(1);
-    setStatus(`✓ Fatto! Rimossi ${totRimossi} valori dalla colonna Importi.`, 'done');
-    dlBtn.style.display = 'block';
-  } catch (err) {
-    console.error(err);
-    setStatus('Errore durante l\'elaborazione: ' + err.message, 'err');
+/* =====================================================================
+   PANNELLO 2 — CONVERTER P7M → PDF
+   ===================================================================== */
+const drop2 = document.getElementById('drop2');
+const file2 = document.getElementById('file2'), folder2 = document.getElementById('folder2');
+const status2 = document.getElementById('status2'), dl2 = document.getElementById('dl2');
+const list2 = document.getElementById('list2');
+const bar2wrap = document.getElementById('panel-p7m').querySelector('.bar'), bar2 = document.getElementById('bar2');
+let zipBytes = null, singlePdf = null, singleName = null;
+
+document.getElementById('pickFiles').addEventListener('click', () => file2.click());
+document.getElementById('pickFolder').addEventListener('click', () => folder2.click());
+file2.addEventListener('change', e => handleP7m([...e.target.files]));
+folder2.addEventListener('change', e => handleP7m([...e.target.files]));
+wireDrop(drop2, files => handleP7m(files));
+drop2.addEventListener('click', () => file2.click());
+
+function set2(msg, cls){ status2.className = 'status ' + (cls||''); status2.textContent = msg; }
+function prog2(p){ bar2wrap.style.display='block'; bar2.style.width = Math.round(p*100)+'%'; }
+
+// trova un pattern di byte in un Uint8Array
+function indexOfBytes(buf, pat, from=0){
+  outer: for (let i=from; i<=buf.length-pat.length; i++){
+    for (let j=0;j<pat.length;j++) if (buf[i+j]!==pat[j]) continue outer;
+    return i;
   }
+  return -1;
+}
+function lastIndexOfBytes(buf, pat){
+  for (let i=buf.length-pat.length; i>=0; i--){
+    let ok=true;
+    for (let j=0;j<pat.length;j++) if (buf[i+j]!==pat[j]){ ok=false; break; }
+    if (ok) return i;
+  }
+  return -1;
+}
+const SIG_PDF = [0x25,0x50,0x44,0x46,0x2D];   // %PDF-
+const SIG_EOF = [0x25,0x25,0x45,0x4F,0x46];   // %%EOF
+
+// estrae i byte del PDF dall'involucro PKCS#7/CAdES
+function extractPdf(uint8){
+  let start = indexOfBytes(uint8, SIG_PDF);
+  if (start < 0){
+    // forse il p7m è in Base64/PEM: prova a decodificare
+    try {
+      let txt = new TextDecoder('latin1').decode(uint8)
+                  .replace(/-----[^-]*-----/g,'').replace(/[^A-Za-z0-9+/=]/g,'');
+      let bin = atob(txt);
+      let arr = new Uint8Array(bin.length);
+      for (let k=0;k<bin.length;k++) arr[k] = bin.charCodeAt(k);
+      uint8 = arr;
+      start = indexOfBytes(uint8, SIG_PDF);
+    } catch(e){}
+  }
+  if (start < 0) return null;
+  let end = lastIndexOfBytes(uint8, SIG_EOF);
+  if (end < 0) end = uint8.length - SIG_EOF.length;
+  return uint8.slice(start, end + SIG_EOF.length);
 }
 
-dlBtn.addEventListener('click', () => {
-  if (!resultBytes) return;
-  const blob = new Blob([resultBytes], { type: 'application/pdf' });
+// "X.pdf.p7m.p7m" -> "X.pdf"
+function pdfName(name){
+  let n = name.replace(/(\.p7m)+$/i, '');
+  if (!/\.pdf$/i.test(n)) n += '.pdf';
+  return n;
+}
+
+async function handleP7m(files){
+  files = files.filter(f => /\.p7m$/i.test(f.name));
+  if (!files.length){ set2('Nessun file .p7m trovato.', 'err'); return; }
+  if (!window.JSZip){ set2('Libreria ZIP non caricata: serve internet.', 'err'); return; }
+  dl2.style.display = 'none'; list2.style.display='block'; list2.innerHTML=''; zipBytes=null; singlePdf=null;
+  const zip = new JSZip();
+  let ok=0, ko=0;
+  for (let i=0;i<files.length;i++){
+    const f = files[i];
+    set2(`Estrazione ${i+1} di ${files.length}…`); prog2((i)/files.length);
+    try {
+      const buf = new Uint8Array(await f.arrayBuffer());
+      const pdf = extractPdf(buf);
+      const row = document.createElement('div');
+      if (pdf){
+        const outName = pdfName(f.name);
+        zip.file(outName, pdf);
+        singlePdf = pdf; singleName = outName;
+        ok++;
+        row.innerHTML = `<span>${outName}</span><span class="okk">✓ ${(pdf.length/1024).toFixed(0)} KB</span>`;
+      } else {
+        ko++;
+        row.innerHTML = `<span>${f.name}</span><span class="ko">✗ nessun PDF trovato</span>`;
+      }
+      list2.appendChild(row);
+    } catch(err){
+      ko++;
+      const row = document.createElement('div');
+      row.innerHTML = `<span>${f.name}</span><span class="ko">✗ ${err.message}</span>`;
+      list2.appendChild(row);
+    }
+  }
+  prog2(1);
+  if (ok === 0){ set2('Nessun PDF estratto.', 'err'); return; }
+
+  if (ok === 1){
+    // un solo file: scarico direttamente il PDF
+    dl2.textContent = '⬇️ Scarica il PDF';
+    set2(`✓ Estratto 1 PDF${ko?` (${ko} non riusciti)`:''}.`, 'done');
+  } else {
+    set2('Creazione ZIP…');
+    zipBytes = await zip.generateAsync({ type:'uint8array' });
+    dl2.textContent = `⬇️ Scarica tutti i PDF (ZIP, ${ok} file)`;
+    set2(`✓ Estratti ${ok} PDF${ko?` (${ko} non riusciti)`:''}.`, 'done');
+  }
+  dl2.style.display = 'block';
+}
+
+dl2.addEventListener('click', () => {
+  if (zipBytes) download(zipBytes, 'documenti_pdf.zip', 'application/zip');
+  else if (singlePdf) download(singlePdf, singleName, 'application/pdf');
+});
+
+/* ---------- download comune ---------- */
+function download(bytes, name, mime){
+  if (!bytes) return;
+  const blob = new Blob([bytes], { type: mime });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
-  a.href = url; a.download = resultName;
+  a.href = url; a.download = name;
   document.body.appendChild(a); a.click(); a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 4000);
-});
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+}
 </script>
 </body>
 </html>
