@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rimuovi Importi - Computo Metrico</title>
+<style>
+  :root{
+    --bg:#0f172a; --card:#1e293b; --accent:#38bdf8; --accent2:#0ea5e9;
+    --ok:#22c55e; --text:#e2e8f0; --muted:#94a3b8; --border:#334155;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; min-height:100vh; font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+    background:linear-gradient(160deg,#0f172a,#1e293b); color:var(--text);
+    display:flex; align-items:center; justify-content:center; padding:24px;
+  }
+  .card{
+    width:100%; max-width:560px; background:var(--card); border:1px solid var(--border);
+    border-radius:18px; padding:32px; box-shadow:0 20px 60px rgba(0,0,0,.4);
+  }
+  h1{font-size:22px; margin:0 0 4px}
+  p.sub{color:var(--muted); margin:0 0 24px; font-size:14px; line-height:1.5}
+  #drop{
+    border:2px dashed var(--border); border-radius:14px; padding:46px 20px; text-align:center;
+    cursor:pointer; transition:.18s; background:rgba(56,189,248,.03);
+  }
+  #drop.hover{border-color:var(--accent); background:rgba(56,189,248,.10); transform:scale(1.01)}
+  #drop .icon{font-size:44px; margin-bottom:10px}
+  #drop .big{font-size:16px; font-weight:600}
+  #drop .small{color:var(--muted); font-size:13px; margin-top:6px}
+  #file{display:none}
+  .status{margin-top:22px; font-size:14px; min-height:22px; text-align:center}
+  .bar{height:8px; background:#0b1220; border-radius:99px; overflow:hidden; margin-top:14px; display:none}
+  .bar > div{height:100%; width:0; background:linear-gradient(90deg,var(--accent),var(--accent2)); transition:width .2s}
+  button{
+    width:100%; margin-top:22px; padding:15px; border:0; border-radius:12px; font-size:16px;
+    font-weight:700; cursor:pointer; color:#04222e; background:linear-gradient(90deg,var(--accent),var(--accent2));
+    transition:.15s; display:none;
+  }
+  button:hover{filter:brightness(1.07)}
+  button:active{transform:translateY(1px)}
+  .note{margin-top:18px; font-size:12px; color:var(--muted); line-height:1.5; text-align:center}
+  .err{color:#f87171}
+  .done{color:var(--ok)}
+</style>
+</head>
+<body>
+  <div class="card">
+    <h1>🧾 Rimuovi Importi</h1>
+    <p class="sub">Carica un Computo Metrico Estimativo in PDF (formato PriMus/ACCA).
+       Lo strumento cancella i valori della colonna <b>IMPORTI</b> (unitario e TOTALE)
+       e ti restituisce lo stesso PDF, senza prezzi.</p>
+
+    <div id="drop">
+      <div class="icon">📄</div>
+      <div class="big">Trascina qui il PDF</div>
+      <div class="small">oppure clicca per selezionarlo</div>
+    </div>
+    <input type="file" id="file" accept="application/pdf,.pdf">
+
+    <div class="bar"><div id="barfill"></div></div>
+    <div class="status" id="status"></div>
+    <button id="dl">⬇️ Scarica PDF senza importi</button>
+
+    <div class="note">Tutto avviene sul tuo computer: il file non viene caricato su nessun server.</div>
+  </div>
+
+<!-- Librerie: lette da CDN (serve connessione internet) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+<script>
+const COL_LEFT = 494;   // taglio: prezzi a destra di x=494
+const TOP_MARGIN = 40;  // ignora il numero di pagina in alto
+const hasDigit = /\d/;
+
+const dropEl = document.getElementById('drop');
+const fileEl = document.getElementById('file');
+const statusEl = document.getElementById('status');
+const dlBtn = document.getElementById('dl');
+const bar = document.querySelector('.bar');
+const barfill = document.getElementById('barfill');
+
+let resultBytes = null, resultName = "computo_senza_importi.pdf";
+
+if (window.pdfjsLib) {
+  pdfjsLib.GlobalWorkerOptions.workerSrc =
+    "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+}
+
+// ---- UI eventi drag & drop ----
+dropEl.addEventListener('click', () => fileEl.click());
+fileEl.addEventListener('change', e => { if (e.target.files[0]) handle(e.target.files[0]); });
+['dragenter','dragover'].forEach(ev => dropEl.addEventListener(ev, e => {
+  e.preventDefault(); dropEl.classList.add('hover');
+}));
+['dragleave','drop'].forEach(ev => dropEl.addEventListener(ev, e => {
+  e.preventDefault(); dropEl.classList.remove('hover');
+}));
+dropEl.addEventListener('drop', e => {
+  const f = e.dataTransfer.files[0];
+  if (f) handle(f);
+});
+
+function setStatus(msg, cls){ statusEl.className = 'status ' + (cls||''); statusEl.textContent = msg; }
+function setProgress(p){ bar.style.display='block'; barfill.style.width = Math.round(p*100)+'%'; }
+
+async function handle(file){
+  if (!file.name.toLowerCase().endsWith('.pdf')) { setStatus('Seleziona un file PDF.', 'err'); return; }
+  if (!window.pdfjsLib || !window.PDFLib) {
+    setStatus('Librerie non caricate: serve la connessione a internet.', 'err'); return;
+  }
+  dlBtn.style.display = 'none';
+  resultName = file.name.replace(/\.pdf$/i, '') + ' - senza importi.pdf';
+  try {
+    const buf = await file.arrayBuffer();
+    setStatus('Analisi del PDF in corso…');
+    setProgress(0.02);
+
+    // 1) pdf.js per leggere le posizioni del testo
+    const pdfjsDoc = await pdfjsLib.getDocument({ data: buf.slice(0) }).promise;
+    // 2) pdf-lib per modificare il PDF
+    const outDoc = await PDFLib.PDFDocument.load(buf.slice(0));
+    const pages = outDoc.getPages();
+    const white = PDFLib.rgb(1, 1, 1);
+
+    let totRimossi = 0;
+    const n = pdfjsDoc.numPages;
+
+    for (let i = 1; i <= n; i++) {
+      const page = await pdfjsDoc.getPage(i);
+      const vp = page.getViewport({ scale: 1 });
+      const H = vp.height;
+      const content = await page.getTextContent();
+      const items = content.items;
+
+      // pagina del computo solo se contiene l'intestazione di colonna
+      const isTable = items.some(it => {
+        const t = (it.str || '').trim();
+        return t === 'TOTALE' || t === 'unitario';
+      });
+
+      if (isTable) {
+        const outPage = pages[i - 1];
+        for (const it of items) {
+          const t = (it.str || '');
+          if (!hasDigit.test(t)) continue;
+          const x = it.transform[4];                 // sinistra (origine in basso-sx)
+          const yBase = it.transform[5];             // linea di base
+          const w = it.width;
+          const h = it.height || 9;
+          const distTop = H - (yBase + h);           // distanza dal bordo superiore
+          if (x >= COL_LEFT && distTop >= TOP_MARGIN) {
+            // rettangolo bianco sopra il valore
+            outPage.drawRectangle({
+              x: x - 1.5,
+              y: yBase - 2.5,
+              width: w + 3,
+              height: h + 5,
+              color: white,
+            });
+            totRimossi++;
+          }
+        }
+      }
+      setProgress(0.02 + 0.9 * (i / n));
+      setStatus(`Elaborazione pagina ${i} di ${n}…`);
+    }
+
+    setStatus('Salvataggio del file…');
+    resultBytes = await outDoc.save();
+    setProgress(1);
+    setStatus(`✓ Fatto! Rimossi ${totRimossi} valori dalla colonna Importi.`, 'done');
+    dlBtn.style.display = 'block';
+  } catch (err) {
+    console.error(err);
+    setStatus('Errore durante l\'elaborazione: ' + err.message, 'err');
+  }
+}
+
+dlBtn.addEventListener('click', () => {
+  if (!resultBytes) return;
+  const blob = new Blob([resultBytes], { type: 'application/pdf' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = resultName;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 4000);
+});
+</script>
+</body>
+</html>
